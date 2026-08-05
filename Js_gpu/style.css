@@ -1,0 +1,14 @@
+html, body {
+    margin: 0;
+    height: 100%;
+}
+canvas {
+    border: 1px solid;
+    width: 99.9%;
+    height: 100%;
+    
+
+    image-rendering: optimizeQuality;
+    
+
+}
