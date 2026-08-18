@@ -10,11 +10,13 @@ namespace windonut
         public List<Rectangle> quads = new List<Rectangle>();
         private readonly Random rng = new Random();
         public bool focus = true;
+
+        const int MAX_FORMS = 25;
         public Form1()
         {
             InitializeComponent();
             DoubleBuffered = true;
-            
+
             StartPosition = FormStartPosition.CenterScreen;
 
 
@@ -209,7 +211,7 @@ namespace windonut
         {
 
             quads.Clear();
-            for (int v = 0; v < 25; v++)
+            for (int v = 0; v < MAX_FORMS; v++)
             {
                 Rectangle best = FindMaxRectangle(hits);
                 if (best.Width * best.Height == 0)
@@ -238,44 +240,53 @@ namespace windonut
         private List<Form> form_pool = new List<Form>();
         public void Display_Forms()
         {
-            while (form_pool.Count < quads.Count)
+            while (form_pool.Count < MAX_FORMS)
             {
                 Form form = new No_Active_Form
                 {
                     StartPosition = FormStartPosition.Manual,
-                    FormBorderStyle = FormBorderStyle.None,
+                    FormBorderStyle = FormBorderStyle.FixedToolWindow,
                     ShowInTaskbar = false,
-                    BackColor = Color.Green,
+                    FormBorderColor = Color.Black,
+                    ControlBox = false,
+                    Owner = this
                     
 
 
 
                 };
+                
                 form_pool.Add(form);
             }
-            while (form_pool.Count > quads.Count)
-            {
-                Form last = form_pool.Last();
-                form_pool.RemoveAt(form_pool.Count - 1);
-                last.Close();
-                last.Dispose();
-            }
-            for (int i = 0; i < quads.Count; i++)
+            
+            for (int i = 0; i < form_pool.Count; i++)
             {
                 Form form = form_pool[i];
-                Rectangle rect = quads[i];
-                form.SetBounds(rect.X, rect.Y, rect.Width, rect.Height);
-
-                if (!form.Visible)
+                if (i < quads.Count)
                 {
-                    form.Show();
+                    Rectangle rect = quads[i];
+
+                    form.SetBounds(rect.X, rect.Y, rect.Width, rect.Height);
+                    if (!form.Visible)
+                    {
+                        form.Show();
+                    }
                 }
+                else
+                {
+                    if (form.Visible)
+                    {
+                        form.Hide();
+                    }
+                }
+
 
 
             }
 
 
         }
+        
         private void DisposeFormPool()
         {
             foreach (Form item in form_pool)
@@ -298,7 +309,7 @@ namespace windonut
 
         private void Form1_Deactivate(object sender, EventArgs e)
         {
-            
+
             focus = false;
             DisposeFormPool();
         }
