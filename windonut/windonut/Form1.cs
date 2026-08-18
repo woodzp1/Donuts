@@ -9,12 +9,13 @@ namespace windonut
         private System.Windows.Forms.Timer timer;
         public List<Rectangle> quads = new List<Rectangle>();
         private readonly Random rng = new Random();
+        public bool focus = true;
         public Form1()
         {
             InitializeComponent();
             DoubleBuffered = true;
-            Greedy(Hit(time));
-
+            
+            StartPosition = FormStartPosition.CenterScreen;
 
 
             timer = new System.Windows.Forms.Timer();
@@ -26,14 +27,17 @@ namespace windonut
         private void Timer_Tick(object sender, EventArgs e)
         {
             time += 0.05f;
+            if (focus)
+            {
+                Rects(Hit(time));
+                Display_Forms();
+            }
 
 
-            Greedy(Hit(time));
-
-
-            Invalidate();
+            //Invalidate();
         }
 
+        #region raymarch
 
         public static bool[,] Hit(float time)
         {
@@ -70,28 +74,6 @@ namespace windonut
 
             return hits;
         }
-        //static Bitmap draw(bool[,] hits)
-        //{
-        //    Bitmap img = new Bitmap(hits.GetLength(0), hits.GetLength(1), System.Drawing.Imaging.PixelFormat.Format32bppRgb);
-        //    for (int x = 0; x < hits.GetLength(0); x++)
-        //    {
-        //        for (int y = 0; y < hits.GetLength(1); y++)
-        //        {
-        //            if (hits[x, y])
-        //            {
-        //                img.SetPixel(x, y, Color.White);
-        //            }
-        //            else
-        //            {
-        //                img.SetPixel(x, y, Color.Black);
-        //            }
-        //        }
-        //    }
-        //    return img;
-
-
-
-        //}
 
         static float RayMarch(Vector3 rd, Vector3 ro, float time)
         {
@@ -146,94 +128,196 @@ namespace windonut
 
         }
 
-        private void Form1_Paint(object sender, PaintEventArgs e)
+        #endregion
+        //private void Form1_Paint(object sender, PaintEventArgs e)
+        //{
+
+
+        //    //Color color = Color.FromArgb(rng.Next(256), rng.Next(256), rng.Next(256));
+        //    Brush brush = new SolidBrush(Color.Black);
+        //    Pen pen = new(brush);
+        //    quads = quads.OrderByDescending(p => (p.Width * p.Height)).Take(30).ToList();
+
+
+        //    foreach (Rectangle item in quads)
+        //    {
+
+        //        e.Graphics.DrawRectangle(pen, item);
+        //    }
+
+        //}
+
+
+
+
+
+
+
+        public static Rectangle FindMaxRectangle(bool[,] grid)
         {
+            int rows = grid.GetLength(0);
+            int cols = grid.GetLength(1);
+            //{ Top = 0, Left = 0, Bottom = -1, Right = -1 }
 
+            Rectangle best = new Rectangle(0, 0, 0, 0); // area 0
+            if (rows == 0 || cols == 0)
+                return best;
 
-            //Color color = Color.FromArgb(rng.Next(256), rng.Next(256), rng.Next(256));
-            Brush brush = new SolidBrush(Color.Black);
-            Pen pen = new(brush);
+            int[] heights = new int[cols];
 
-            foreach (Rectangle item in quads)
+            for (int r = 0; r < rows; r++)
             {
+                // Update histogram heights for this row
+                for (int c = 0; c < cols; c++)
+                    heights[c] = grid[r, c] ? heights[c] + 1 : 0;
 
-                e.Graphics.DrawRectangle(pen, item);
+                // Largest rectangle in this histogram, with a sentinel 0-height pass at c == cols
+                var stack = new Stack<int>();
+                for (int c = 0; c <= cols; c++)
+                {
+                    int h = (c == cols) ? 0 : heights[c];
+
+                    while (stack.Count > 0 && heights[stack.Peek()] >= h)
+                    {
+                        int idx = stack.Pop();
+                        int height = heights[idx];
+                        int left = stack.Count == 0 ? 0 : stack.Peek() + 1;
+                        int right = c - 1;
+                        int width = right - left + 1;
+                        int area = height * width;
+
+                        if (area > best.Height * best.Width)
+                        {
+                            best = new Rectangle(left, r - height + 1, width, height);
+                            //best = new Rectangle
+                            //{
+
+                            //    Top = r - height + 1,
+                            //    Bottom = r,
+                            //    Left = left,
+                            //    Right = right
+                            //};
+                        }
+                    }
+                    stack.Push(c);
+                }
             }
 
+            return best;
         }
-
-        public void Greedy(bool[,] hits)
+        public void Rects(bool[,] hits)
         {
+
             quads.Clear();
-            while (true)
+            for (int v = 0; v < 25; v++)
             {
-                Point Get_start()
-                {
-                    Point start = new Point();
-                    for (int y = 0; y < hits.GetLength(1); y++)
-                        for (int x = 0; x < hits.GetLength(0); x++)
-                        {
+                Rectangle best = FindMaxRectangle(hits);
+                if (best.Width * best.Height == 0)
+                    break;
 
-                            if (hits[x, y])
-                            {
-                                start = new Point(x, y);
-                                return start;
-                            }
-
-                        }
-                    return start;
-                }
-                Point start = Get_start();
-                if (start.IsEmpty)
+                for (int j = best.Y; j < best.Bottom; j++)
                 {
-                    return;
-                }
-                bool hit = true;
-                int c = 0;
-                while (start.X + c < hits.GetLength(0) && hits[start.X + c, start.Y])
-                {
-                    c++;
-                    //hit = hits[start.X + c, start.Y];
-
-                }
-                int v = 0;
-                hit = true;
-                bool rowOk = true;
-                while (rowOk && start.Y + v < hits.GetLength(1))
-                {
-                    for (int x = 0; x < c; x++)
+                    for (int i = best.X; i < best.Right; i++)
                     {
-                        if (!hits[start.X + x, start.Y + v])
-                        {
-                            rowOk = false;
-                            break;
-                        }
-                    }
-                    if (rowOk)
-                    {
-                        v++;
+                        hits[j, i] = false;
                     }
                 }
 
-                Rectangle r = new Rectangle(start.X, start.Y, c * 10, v * 10);
-                r.Offset(start.X * 9, start.Y * 9);
+                best.Offset(10, 10);
+                best.Width *= 10;
+                best.Height *= 10;
+                best.X *= 10;
+                best.Y *= 10;
+                quads.Add(best);
 
-                quads.Add(r);
-                for (int x = start.X; x < c + start.X; x++)
-                {
-                    for (int y = start.Y; y < v + start.Y; y++)
-                    {
-                        hits[x, y] = false;
-                    }
-                }
 
 
 
             }
+        }
+        private List<Form> form_pool = new List<Form>();
+        public void Display_Forms()
+        {
+            while (form_pool.Count < quads.Count)
+            {
+                Form form = new No_Active_Form
+                {
+                    StartPosition = FormStartPosition.Manual,
+                    FormBorderStyle = FormBorderStyle.None,
+                    ShowInTaskbar = false,
+                    BackColor = Color.Green,
+                    
+
+
+
+                };
+                form_pool.Add(form);
+            }
+            while (form_pool.Count > quads.Count)
+            {
+                Form last = form_pool.Last();
+                form_pool.RemoveAt(form_pool.Count - 1);
+                last.Close();
+                last.Dispose();
+            }
+            for (int i = 0; i < quads.Count; i++)
+            {
+                Form form = form_pool[i];
+                Rectangle rect = quads[i];
+                form.SetBounds(rect.X, rect.Y, rect.Width, rect.Height);
+
+                if (!form.Visible)
+                {
+                    form.Show();
+                }
+
+
+            }
+
 
         }
+        private void DisposeFormPool()
+        {
+            foreach (Form item in form_pool)
+            {
+                item.Close();
+                item.Dispose();
+            }
+            form_pool.Clear();
+        }
 
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            DisposeFormPool();
+        }
 
+        private void Form1_Activated(object sender, EventArgs e)
+        {
+            focus = true;
+        }
+
+        private void Form1_Deactivate(object sender, EventArgs e)
+        {
+            
+            focus = false;
+            DisposeFormPool();
+        }
+    }
+    //had an issue with focus this fixes it
+    public class No_Active_Form : Form
+    {
+        protected override bool ShowWithoutActivation => true;
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                const int WS_EX_NOACTIVATE = 0x08000000;
+                CreateParams cp = base.CreateParams;
+                cp.ExStyle |= WS_EX_NOACTIVATE;
+                return cp;
+            }
+        }
 
     }
 }
